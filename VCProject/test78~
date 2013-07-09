@@ -1,0 +1,7 @@
+int main() {
+int a[5];
+a[0] = 10;
+i = a[0];
+
+return 0;
+}

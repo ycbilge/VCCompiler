@@ -1,0 +1,20 @@
+content_assist_disabled_computers=org.eclipse.jdt.ui.javaAllProposalCategory\u0000org.eclipse.jdt.ui.javaNoTypeProposalCategory\u0000org.eclipse.jdt.ui.textProposalCategory\u0000org.eclipse.jdt.ui.javaTypeProposalCategory\u0000
+content_assist_lru_history=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><history maxLHS\="100" maxRHS\="10"><lhs name\="java.lang.CharSequence"><rhs name\="java.lang.StringBuilder"/></lhs><lhs name\="java.lang.AbstractStringBuilder"><rhs name\="java.lang.StringBuilder"/></lhs><lhs name\="java.lang.Appendable"><rhs name\="java.lang.StringBuilder"/></lhs><lhs name\="VC.ErrorReporter"><rhs name\="VC.ErrorReporter"/></lhs><lhs name\="VC.ASTs.AST"><rhs name\="VC.ASTs.CallExpr"/><rhs name\="VC.ASTs.EmptyExpr"/><rhs name\="VC.ASTs.VarExpr"/><rhs name\="VC.ASTs.ArrayExpr"/><rhs name\="VC.ASTs.AssignExpr"/><rhs name\="VC.ASTs.SimpleVar"/><rhs name\="VC.ASTs.ParaDecl"/><rhs name\="VC.ASTs.GlobalVarDecl"/><rhs name\="VC.ASTs.ArrayType"/><rhs name\="VC.ASTs.LocalVarDecl"/></lhs><lhs name\="VC.ASTs.Expr"><rhs name\="VC.ASTs.FloatExpr"/><rhs name\="VC.ASTs.BooleanExpr"/><rhs name\="VC.ASTs.UnaryExpr"/><rhs name\="VC.ASTs.InitExpr"/><rhs name\="VC.ASTs.BinaryExpr"/><rhs name\="VC.ASTs.CallExpr"/><rhs name\="VC.ASTs.AssignExpr"/><rhs name\="VC.ASTs.EmptyExpr"/><rhs name\="VC.ASTs.VarExpr"/><rhs name\="VC.ASTs.ArrayExpr"/></lhs><lhs name\="VC.Scanner.SourcePosition"><rhs name\="VC.Scanner.SourcePosition"/></lhs><lhs name\="VC.ASTs.List"><rhs name\="VC.ASTs.ArgList"/><rhs name\="VC.ASTs.EmptyDeclList"/><rhs name\="VC.ASTs.DeclList"/><rhs name\="VC.ASTs.EmptyStmtList"/><rhs name\="VC.ASTs.ParaList"/><rhs name\="VC.ASTs.EmptyExprList"/><rhs name\="VC.ASTs.ExprList"/><rhs name\="VC.ASTs.EmptyArgList"/><rhs name\="VC.ASTs.EmptyParaList"/></lhs><lhs name\="VC.ASTs.Stmt"><rhs name\="VC.ASTs.ContinueStmt"/><rhs name\="VC.ASTs.WhileStmt"/><rhs name\="VC.ASTs.ForStmt"/><rhs name\="VC.ASTs.IfStmt"/><rhs name\="VC.ASTs.EmptyCompStmt"/><rhs name\="VC.ASTs.ReturnStmt"/><rhs name\="VC.ASTs.EmptyStmt"/></lhs><lhs name\="VC.ASTs.Decl"><rhs name\="VC.ASTs.LocalVarDecl"/><rhs name\="VC.ASTs.GlobalVarDecl"/><rhs name\="VC.ASTs.ParaDecl"/><rhs name\="VC.ASTs.FuncDecl"/></lhs><lhs name\="java.util.Vector"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.List"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.RandomAccess"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.lang.Cloneable"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.Collection"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.lang.Iterable"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.AbstractList"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.AbstractCollection"><rhs name\="java.util.Stack"/></lhs><lhs name\="java.util.Stack"><rhs name\="java.util.Stack"/></lhs><lhs name\="VC.ASTs.Type"><rhs name\="VC.ASTs.BooleanType"/><rhs name\="VC.ASTs.FloatType"/><rhs name\="VC.ASTs.VoidType"/><rhs name\="VC.ASTs.IntType"/><rhs name\="VC.ASTs.ArrayType"/></lhs><lhs name\="VC.ASTs.ParaDecl"><rhs name\="VC.ASTs.ParaDecl"/></lhs><lhs name\="VC.ASTs.ParaList"><rhs name\="VC.ASTs.ParaList"/></lhs><lhs name\="VC.CodeGen.Frame"><rhs name\="VC.CodeGen.Frame"/></lhs><lhs name\="VC.ASTs.Var"><rhs name\="VC.ASTs.SimpleVar"/></lhs></history>
+content_assist_number_of_computers=21
+content_assist_proposals_background=255,255,255
+content_assist_proposals_foreground=60,60,60
+eclipse.preferences.version=1
+fontPropagated=true
+org.eclipse.jdt.ui.editor.tab.width=
+org.eclipse.jdt.ui.formatterprofiles.version=12
+org.eclipse.jdt.ui.javadoclocations.migrated=true
+org.eclipse.jdt.ui.text.code_templates_migrated=true
+org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+org.eclipse.jdt.ui.text.custom_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+org.eclipse.jdt.ui.text.templates_migrated=true
+org.eclipse.jface.textfont=1|Monospace|10.0|0|GTK|1|;
+proposalOrderMigrated=true
+spelling_locale_initialized=true
+tabWidthPropagated=true
+useAnnotationsPrefPage=true
+useQuickDiffPrefPage=true

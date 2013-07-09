@@ -1,0 +1,886 @@
+/**
+ * Checker.java   
+ * Mon Apr 29 14:58:04 EST 2013
+ **/
+
+package VC.Checker;
+
+import VC.ASTs.*;
+import VC.Scanner.SourcePosition;
+import VC.ErrorReporter;
+import VC.StdEnvironment;
+
+
+/*
+ * Yunus Can Bilge
+ * yunuscan.bilge@gmail.com
+ * Programming Languages and Compilers
+ * Assignment 4 Solution
+ */
+public final class Checker implements Visitor {
+
+	private String errMesg[] = {
+			"*0: main function is missing",
+			"*1: return type of main is not int",
+
+			// defined occurrences of identifiers
+			// for global, local and parameters
+			"*2: identifier redeclared",
+			"*3: identifier declared void",
+			"*4: identifier declared void[]",
+
+			// applied occurrences of identifiers
+			"*5: identifier undeclared",
+
+			// assignments
+			"*6: incompatible type for =",
+			"*7: invalid lvalue in assignment",
+
+			// types for expressions
+			"*8: incompatible type for return",
+			"*9: incompatible type for this binary operator",
+			"*10: incompatible type for this unary operator",
+
+			// scalars
+			"*11: attempt to use an array/fuction as a scalar",
+
+			// arrays
+			"*12: attempt to use a scalar/function as an array",
+			"*13: wrong type for element in array initialiser",
+			"*14: invalid initialiser: array initialiser for scalar",
+			"*15: invalid initialiser: scalar initialiser for array",
+			"*16: excess elements in array initialiser",
+			"*17: array subscript is not an integer",
+			"*18: array size missing",
+
+			// functions
+			"*19: attempt to reference a scalar/array as a function",
+
+			// conditional expressions in if, for and while
+			"*20: if conditional is not boolean",
+			"*21: for conditional is not boolean",
+			"*22: while conditional is not boolean",
+
+			// break and continue
+			"*23: break must be in a while/for",
+			"*24: continue must be in a while/for",
+
+			// parameters
+			"*25: too many actual parameters",
+			"*26: too few actual parameters",
+			"*27: wrong type for actual parameter",
+
+			// reserved for errors that I may have missed (J. Xue)
+			"*28: misc 1", "*29: misc 2",
+
+			// the following two checks are optional
+			"*30: statement(s) not reached", "*31: missing return statement", };
+
+	private SymbolTable idTable;
+	private static SourcePosition dummyPos = new SourcePosition();
+	private ErrorReporter reporter;
+	private boolean insideBreakOrForLoop;
+	private boolean returnStmt = false;
+
+	// Checks whether the source program, represented by its AST,
+	// satisfies the language's scope rules and type rules.
+	// Also decorates the AST as follows:
+	// (1) Each applied occurrence of an identifier is linked to
+	// the corresponding declaration of that identifier.
+	// (2) Each expression and variable is decorated by its type.
+
+	public Checker(ErrorReporter reporter) {
+		this.reporter = reporter;
+		this.idTable = new SymbolTable();
+		establishStdEnvironment();
+		insideBreakOrForLoop = false;
+	}
+
+	public void check(AST ast) {
+		ast.visit(this, null);
+	}
+
+	// buna ok diyelim
+	// auxiliary methods
+	// TODO burada idTable.insert else incindeyken ben koyunca hata cikiyor.
+	private void declareVariable(Ident ident, Decl decl) {
+		IdEntry entry = idTable.retrieveOneLevel(ident.spelling);
+
+		if (entry == null) {
+			; // no problem
+		} else {
+			reporter.reportError(errMesg[2] + ": %", ident.spelling,
+					ident.position);
+			// idTable.insert(ident.spelling, decl);
+
+		}
+		idTable.insert(ident.spelling, decl);
+	}
+
+	// bu da tamam
+	// Programs
+	// TODO main funcdecl diye bakilabilir
+	public Object visitProgram(Program ast, Object o) {
+		ast.FL.visit(this, o);
+		IdEntry entry = idTable.retrieveOneLevel("main");
+		if (entry != null) {
+			if (!entry.attr.T.isIntType()) {
+				if (entry.attr instanceof FuncDecl)
+					reporter.reportError(errMesg[1] + "", "",
+							ast.position);
+			}
+		} else {
+			reporter.reportError(errMesg[0] + "", "", ast.position);
+		}
+		return null;
+	}
+
+	// Statements
+	public Object visitCompoundStmt(CompoundStmt ast, Object o) {
+		idTable.openScope();
+		// ast.DL.visit(this, ast);
+		// ast.SL.visit(this, ast);
+		ast.DL.visit(this, o);
+		ast.SL.visit(this, o);
+
+		// Your code goes here
+
+		idTable.closeScope();
+		return null;
+	}
+
+
+	public Object visitStmtList(StmtList ast, Object o) {
+		ast.S.visit(this, o);
+		// ast.SL.visit(this, o);
+		if (ast.S instanceof ReturnStmt && ast.SL instanceof StmtList) {
+			reporter.reportError(errMesg[30], "", ast.SL.position);
+		}
+		ast.SL.visit(this, o);
+		return null;
+	}
+
+	public Object visitExprStmt(ExprStmt ast, Object o) {
+
+		ast.E.visit(this, o);
+		return null;
+	}
+
+	public Object visitEmptyStmt(EmptyStmt ast, Object o) {
+		return null;
+	}
+
+		public Object visitEmptyStmtList(EmptyStmtList ast, Object o) {
+		return null;
+	}
+
+	// Expressions
+
+	// Returns the Type denoting the type of the expression. Does
+	// not use the given object.
+		public Object visitEmptyExpr(EmptyExpr ast, Object o) {
+		ast.type = StdEnvironment.errorType;
+		return ast.type;
+	}
+
+		public Object visitBooleanExpr(BooleanExpr ast, Object o) {
+		ast.type = StdEnvironment.booleanType;
+		return ast.type;
+	}
+
+		public Object visitIntExpr(IntExpr ast, Object o) {
+		ast.type = StdEnvironment.intType;
+		return ast.type;
+	}
+
+		public Object visitFloatExpr(FloatExpr ast, Object o) {
+		ast.type = StdEnvironment.floatType;
+		return ast.type;
+	}
+
+		public Object visitStringExpr(StringExpr ast, Object o) {
+		ast.type = StdEnvironment.stringType;
+		return ast.type;
+	}
+
+	
+	public Object visitVarExpr(VarExpr ast, Object o) {
+		ast.type = (Type) ast.V.visit(this, o);
+		return ast.type;
+	}
+
+
+	// Always returns null. Does not use the given object.
+	public Object visitFuncDecl(FuncDecl ast, Object o) {
+
+		IdEntry entry = idTable.retrieveOneLevel(ast.I.spelling);
+
+		if (entry == null) {
+			; // no problem
+		} else {
+			reporter.reportError(errMesg[2] + ": %", ast.I.spelling,
+					ast.I.position);
+			// idTable.insert(ast.I.spelling, ast);
+
+		}
+		idTable.insert(ast.I.spelling, ast);
+		// to differentiate between function parameters and other variable
+		// declarations
+
+		returnStmt = false;
+		ast.T.visit(this, ast);
+		ast.I.visit(this, ast);
+		ast.PL.visit(this, o);
+		idTable.openScope();
+		ast.S.visit(this, ast);
+		idTable.closeScope();
+		// Your code goes here
+		if (!ast.T.isVoidType() && returnStmt == false) {
+			reporter.reportError(errMesg[31], "", ast.T.position);
+		}
+		// HINT
+		// Pass ast as the 2nd argument (as done below) so that the
+		// formal parameters of the function an be extracted from ast when the
+		// function body is later visited
+
+		return null;
+	}
+
+	// ok
+	public Object visitDeclList(DeclList ast, Object o) {
+		ast.D.visit(this, o);
+		ast.DL.visit(this, o);
+		return null;
+	}
+
+	// bu ok yani
+	public Object visitEmptyDeclList(EmptyDeclList ast, Object o) {
+		return null;
+	}
+
+	public Object visitGlobalVarDecl(GlobalVarDecl ast, Object o) {
+		declareVariable(ast.I, ast);
+		ast.T.visit(this, ast);
+		ast.E.visit(this, ast);
+
+		if (ast.T.isVoidType()) {
+			reporter.reportError(errMesg[3] + ": %", ast.I.spelling,
+					ast.I.position);
+		} else if (ast.T.isArrayType()) {
+			if (((ArrayType) ast.T).T.isVoidType())
+				reporter.reportError(errMesg[4] + ": %", ast.I.spelling,
+						ast.I.position);
+			if (!(ast.E instanceof InitExpr) && !(ast.E instanceof EmptyExpr)) {
+				reporter.reportError(errMesg[15] + ": %", ast.I.spelling,
+						ast.position);
+			} else if (ast.E instanceof EmptyExpr) {
+				reporter.reportError(errMesg[18] + ": %", ast.I.spelling,
+						ast.I.position);
+			}
+			// if (!ast.E.type.isArrayType() && !ast.E.type.isErrorType()) {
+			// reporter.reportError(errMesg[15] + ": %", ast.I.spelling,
+			// ast.I.position);
+			// }
+			// if(ast.E.isEmptyExpr()) {
+			// reporter.reportError(errMesg[18] + ": %", ast.I.spelling,
+			// ast.I.position);
+			// }
+		}
+		return null;
+		// fill the rest
+	}
+
+	public Object visitLocalVarDecl(LocalVarDecl ast, Object o) {
+		declareVariable(ast.I, ast);
+
+		ast.T.visit(this, ast);
+		ast.E.visit(this, ast);
+
+		if (ast.T.isVoidType()) {
+			reporter.reportError(errMesg[3] + ": %", ast.I.spelling,
+					ast.I.position);
+		} else if (ast.T.isArrayType()) {
+			if (((ArrayType) ast.T).T.isVoidType()) {
+				reporter.reportError(errMesg[4] + ": %", ast.I.spelling,
+						ast.I.position);
+			}
+			if (!(ast.E instanceof InitExpr) && !(ast.E instanceof EmptyExpr)) {
+				reporter.reportError(errMesg[15] + ": %", ast.I.spelling,
+						ast.position);
+			} else if (ast.E instanceof EmptyExpr) {
+				reporter.reportError(errMesg[18] + ": %", ast.I.spelling,
+						ast.I.position);
+			}
+		}
+		return null;
+		// fill the rest
+	}
+
+	// Parameters
+
+	// Always returns null. Does not use the given object.
+	// burdaki degisikligim null gondermek yerine object o gonderdim
+	public Object visitParaList(ParaList ast, Object o) {
+		ast.P.visit(this, o);
+		ast.PL.visit(this, o);
+		return null;
+	}
+
+	public Object visitParaDecl(ParaDecl ast, Object o) {
+		declareVariable(ast.I, ast);
+		ast.T.visit(this, o);
+		if (ast.T.isVoidType()) {
+			reporter.reportError(errMesg[3] + ": %", ast.I.spelling,
+					ast.I.position);
+		} else if (ast.T.isArrayType()) {
+			if (((ArrayType) ast.T).T.isVoidType())
+				reporter.reportError(errMesg[4] + ": %", ast.I.spelling,
+						ast.I.position);
+		}
+		return null;
+	}
+
+	public Object visitEmptyParaList(EmptyParaList ast, Object o) {
+		return null;
+	}
+
+	// Arguments
+
+	// Your visitor methods for arguments go here
+
+	// Types
+
+	// Returns the type predefined in the standard environment.
+	public Object visitErrorType(ErrorType ast, Object o) {
+		return StdEnvironment.errorType;
+	}
+
+	public Object visitBooleanType(BooleanType ast, Object o) {
+		return StdEnvironment.booleanType;
+	}
+
+	public Object visitIntType(IntType ast, Object o) {
+		return StdEnvironment.intType;
+	}
+
+	public Object visitFloatType(FloatType ast, Object o) {
+		return StdEnvironment.floatType;
+	}
+
+	public Object visitStringType(StringType ast, Object o) {
+		return StdEnvironment.stringType;
+	}
+
+	public Object visitVoidType(VoidType ast, Object o) {
+		return StdEnvironment.voidType;
+	}
+
+	// Literals, Identifiers and Operators
+	public Object visitIdent(Ident I, Object o) {
+		Decl binding = idTable.retrieve(I.spelling);
+		if (binding != null)
+			I.decl = binding;
+		else
+			reporter.reportError(errMesg[5] + ": %", I.spelling, I.position);
+		return binding;
+	}
+
+	public Object visitBooleanLiteral(BooleanLiteral SL, Object o) {
+		return StdEnvironment.booleanType;
+	}
+
+	public Object visitIntLiteral(IntLiteral IL, Object o) {
+		return StdEnvironment.intType;
+	}
+
+	public Object visitFloatLiteral(FloatLiteral IL, Object o) {
+		return StdEnvironment.floatType;
+	}
+
+	public Object visitStringLiteral(StringLiteral IL, Object o) {
+		return StdEnvironment.stringType;
+	}
+
+	public Object visitOperator(Operator O, Object o) {
+		return null;
+	}
+
+	// Creates a small AST to represent the "declaration" of each built-in
+	// function, and enters it in the symbol table.
+	private FuncDecl declareStdFunc(Type resultType, String id, List pl) {
+
+		FuncDecl binding;
+
+		binding = new FuncDecl(resultType, new Ident(id, dummyPos), pl,
+				new EmptyStmt(dummyPos), dummyPos);
+		idTable.insert(id, binding);
+		return binding;
+	}
+
+	// Creates small ASTs to represent "declarations" of all
+	// build-in functions.
+	// Inserts these "declarations" into the symbol table.
+
+	private final static Ident dummyI = new Ident("x", dummyPos);
+
+	private void establishStdEnvironment() {
+
+		// Define four primitive types
+		// errorType is assigned to ill-typed expressions
+
+		StdEnvironment.booleanType = new BooleanType(dummyPos);
+		StdEnvironment.intType = new IntType(dummyPos);
+		StdEnvironment.floatType = new FloatType(dummyPos);
+		StdEnvironment.stringType = new StringType(dummyPos);
+		StdEnvironment.voidType = new VoidType(dummyPos);
+		StdEnvironment.errorType = new ErrorType(dummyPos);
+
+		// enter into the declarations for built-in functions into the table
+
+		StdEnvironment.getIntDecl = declareStdFunc(StdEnvironment.intType,
+				"getInt", new EmptyParaList(dummyPos));
+		StdEnvironment.putIntDecl = declareStdFunc(StdEnvironment.voidType,
+				"putInt", new ParaList(new ParaDecl(StdEnvironment.intType,
+						dummyI, dummyPos), new EmptyParaList(dummyPos),
+						dummyPos));
+		StdEnvironment.putIntLnDecl = declareStdFunc(StdEnvironment.voidType,
+				"putIntLn", new ParaList(new ParaDecl(StdEnvironment.intType,
+						dummyI, dummyPos), new EmptyParaList(dummyPos),
+						dummyPos));
+		StdEnvironment.getFloatDecl = declareStdFunc(StdEnvironment.floatType,
+				"getFloat", new EmptyParaList(dummyPos));
+		StdEnvironment.putFloatDecl = declareStdFunc(StdEnvironment.voidType,
+				"putFloat", new ParaList(new ParaDecl(StdEnvironment.floatType,
+						dummyI, dummyPos), new EmptyParaList(dummyPos),
+						dummyPos));
+		StdEnvironment.putFloatLnDecl = declareStdFunc(StdEnvironment.voidType,
+				"putFloatLn", new ParaList(new ParaDecl(
+						StdEnvironment.floatType, dummyI, dummyPos),
+						new EmptyParaList(dummyPos), dummyPos));
+		StdEnvironment.putBoolDecl = declareStdFunc(StdEnvironment.voidType,
+				"putBool", new ParaList(new ParaDecl(
+						StdEnvironment.booleanType, dummyI, dummyPos),
+						new EmptyParaList(dummyPos), dummyPos));
+		StdEnvironment.putBoolLnDecl = declareStdFunc(StdEnvironment.voidType,
+				"putBoolLn", new ParaList(new ParaDecl(
+						StdEnvironment.booleanType, dummyI, dummyPos),
+						new EmptyParaList(dummyPos), dummyPos));
+
+		StdEnvironment.putStringLnDecl = declareStdFunc(
+				StdEnvironment.voidType, "putStringLn", new ParaList(
+						new ParaDecl(StdEnvironment.stringType, dummyI,
+								dummyPos), new EmptyParaList(dummyPos),
+						dummyPos));
+
+		StdEnvironment.putStringDecl = declareStdFunc(StdEnvironment.voidType,
+				"putString", new ParaList(new ParaDecl(
+						StdEnvironment.stringType, dummyI, dummyPos),
+						new EmptyParaList(dummyPos), dummyPos));
+
+		StdEnvironment.putLnDecl = declareStdFunc(StdEnvironment.voidType,
+				"putLn", new EmptyParaList(dummyPos));
+
+	}
+
+	// ok bu degistirdim error donderiyor
+	@Override
+	public Object visitEmptyExprList(EmptyExprList ast, Object o) {
+		return StdEnvironment.errorType;
+		// return null;
+	}
+
+	// ok
+	@Override
+	public Object visitEmptyArgList(EmptyArgList ast, Object o) {
+		return null;
+	}
+
+	// ok
+	// object gonderdim
+	@Override
+	public Object visitIfStmt(IfStmt ast, Object o) {
+		ast.E.visit(this, o);
+		if (!ast.E.type.isBooleanType()) {
+			reporter.reportError(errMesg[20] + " (found:" + ast.E.type + ")",
+					"", ast.E.position);
+		}
+		ast.S1.visit(this, o);
+		ast.S2.visit(this, o);
+
+		return null;
+	}
+
+	// ok bu
+	@Override
+	public Object visitWhileStmt(WhileStmt ast, Object o) {
+		ast.E.visit(this, o);
+		if (!ast.E.type.isBooleanType()) {
+			reporter.reportError(errMesg[22] + " (found:" + ast.E.type + ")",
+					"", ast.E.position);
+		}
+		insideBreakOrForLoop = true;
+		ast.S.visit(this, o);
+		insideBreakOrForLoop = false;
+		return null;
+	}
+
+	// ok
+	@Override
+	public Object visitForStmt(ForStmt ast, Object o) {
+		ast.E1.visit(this, o);
+		if (!ast.E1.type.isBooleanType() && !ast.E1.isEmptyExpr()) {
+			reporter.reportError(errMesg[21] + " (found:" + ast.E1.type + ")",
+					"", ast.E1.position);
+		}
+		ast.E2.visit(this, o);
+		if (!ast.E2.type.isBooleanType() && !ast.E2.isEmptyExpr()) {
+			reporter.reportError(errMesg[21] + " (found:" + ast.E2.type + ")",
+					"", ast.E2.position);
+		}
+		ast.E3.visit(this, o);
+		if (!ast.E3.type.isBooleanType() && !ast.E3.isEmptyExpr()) {
+			reporter.reportError(errMesg[21] + " (found:" + ast.E3.type + ")",
+					"", ast.E3.position);
+		}
+		insideBreakOrForLoop = true;
+		ast.S.visit(this, o);
+		insideBreakOrForLoop = false;
+		return null;
+	}
+
+	// bu ok
+	@Override
+	public Object visitBreakStmt(BreakStmt ast, Object o) {
+		if (!insideBreakOrForLoop) {
+			reporter.reportError(errMesg[23] + ": %", "", ast.position);
+		}
+		return null;
+	}
+
+	// bu ok
+	@Override
+	public Object visitContinueStmt(ContinueStmt ast, Object o) {
+		if (!insideBreakOrForLoop) {
+			reporter.reportError(errMesg[24] + ": %", "", ast.position);
+		}
+		return null;
+	}
+
+	// TODO degisecek
+	@Override
+	public Object visitReturnStmt(ReturnStmt ast, Object o) {
+		returnStmt = true;
+		Type t = (Type) ast.E.visit(this, o);
+		if (o instanceof FuncDecl) {
+
+			if (!(((FuncDecl) o).T.assignable(t))) {
+				reporter.reportError(errMesg[8] + ": %", "", ast.position);
+
+			}
+		}
+		return null;
+	}
+
+	// ok
+	@Override
+	public Object visitEmptyCompStmt(EmptyCompStmt ast, Object o) {
+		return null;
+	}
+
+	// TODO need to check
+	@Override
+	public Object visitUnaryExpr(UnaryExpr ast, Object o) {
+		ast.O.visit(this, null);
+		ast.E.visit(this, null);
+		if (ast.O.spelling.equals("!")) {
+			if (!ast.E.type.isBooleanType()) {
+				reporter.reportError(errMesg[10] + ": %", ast.O.spelling,
+						ast.position);
+			}
+		}
+		return null;
+	}
+
+	private boolean intFloatOperators(String op) {
+		if (op.equals("+") || op.equals("-") || op.equals("/")
+				|| op.equals("*") || op.equals("<") || op.equals(">")
+				|| op.equals("<=") || op.equals(">=")) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	private boolean booleanOperators(String op) {
+		if (op.equals("&&") || op.equals("||")) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// TODO need to check
+	@Override
+	public Object visitBinaryExpr(BinaryExpr ast, Object o) {
+
+		ast.E1.visit(this, o);
+		ast.O.visit(this, null);
+		ast.E2.visit(this, o);
+
+		if (ast.E1.type != null && ast.E2.type != null) {
+
+			if (ast.E1.type.isArrayType()) {
+				reporter.reportError(errMesg[11] + ": %", "", ast.position);
+			}
+			if (ast.E2.type.isArrayType()) {
+				reporter.reportError(errMesg[11] + ": %", "", ast.position);
+			}
+			if (intFloatOperators(ast.O.spelling)) {
+				if (!(ast.E1.type.isIntType() || ast.E1.type.isFloatType())
+						|| !(ast.E2.type.isIntType() || ast.E2.type
+								.isFloatType())) {
+					reporter.reportError(errMesg[9] + ": %", ast.O.spelling,
+							ast.position);
+				}
+			} else if (booleanOperators(ast.O.spelling)) {
+				if (!ast.E1.type.isBooleanType()
+						|| !ast.E2.type.isBooleanType()) {
+					reporter.reportError(errMesg[9] + ": %", ast.O.spelling,
+							ast.position);
+				}
+			}
+		}
+		// if (ast.O.spelling.equals("||") || ast.O.spelling.equals("&&")) {
+		// if (!ast.E1.type.isBooleanType() && !ast.E2.type.isBooleanType()) {
+		// reporter.reportError(errMesg[9] + ": %", ast.O.spelling,
+		// ast.position);
+		// }
+		// } else if (intOperators(ast.O.spelling)) {
+		//
+		// if (!(ast.E1.type.isIntType() || ast.E1.type.isFloatType())
+		// || !(ast.E2.type.isIntType() || ast.E2.type.isFloatType())) {
+		// reporter.reportError(errMesg[9] + ": %", ast.O.spelling,
+		// ast.position);
+		// }
+		//
+		// }
+
+		return null;
+	}
+
+	@Override
+	public Object visitInitExpr(InitExpr ast, Object o) {
+
+		ast.IL.visit(this, o);
+		if (o instanceof Decl) {
+			Decl decl = (Decl) o;
+			// if (t != null) {
+
+			// if (t.isArrayType()) {
+
+			if (!(((Decl) o).T.isArrayType())) {
+				reporter.reportError(errMesg[14] + ": %", "", ast.position);
+			} else {
+				int counter = 0;
+				List l = ast.IL;
+				while (!(l instanceof EmptyExprList)) {
+					counter++;
+					l = ((ExprList) l).EL;
+				}
+				Expr index = ((ArrayType) decl.T).E;
+				Type indexT = ((ArrayType) decl.T).E.type;
+				if (indexT.isIntType()) {
+					int numberInDecl = Integer
+							.parseInt(((IntExpr) index).IL.spelling);
+					if (counter > numberInDecl) {
+						reporter.reportError(errMesg[16] + ": %", "",
+								((Decl) o).position);
+					}
+				}
+			}
+		}
+		// }
+		// }
+
+		return null;
+	}
+
+	// type.t yerine type yaptim
+	@Override
+	public Object visitExprList(ExprList ast, Object o) {
+		Type t1 = (Type) ast.E.visit(this, o);
+		// if (o instanceof Decl) {
+		// ast.EL.visit(this, o);
+		if (o instanceof Decl) {
+			if (((Decl) o).T.isArrayType()) {
+				ArrayType type = (ArrayType) ((Decl) o).T;
+				//Type t2 = type;
+				Type t2 = type.T;
+				if (!t2.assignable(t1)) {
+					reporter.reportError(errMesg[13] + ": %", "",
+							ast.E.position);
+				}
+			}
+
+			// if (((Decl) o).T.isArrayType()) {
+			//
+			// if (!(((Decl) o).T.assignable(ast.E.type))) {
+			// reporter.reportError(errMesg[13] + ": %", ast.E.type.toString(),
+			// ast.E.position);
+			// }
+			// }
+		}
+
+		ast.EL.visit(this, o);
+		return null;
+
+	}
+
+	@Override
+	public Object visitArrayExpr(ArrayExpr ast, Object o) {
+		Type t = (Type) ast.V.visit(this, o);
+		// if (t != null) {
+		ast.E.visit(this, o);
+		if (!t.isArrayType()) {
+			reporter.reportError(errMesg[12] + "", "", ast.position);
+		}
+		// }
+		if (ast.E.type != null) {
+			if (!ast.E.type.isIntType()) {
+				reporter.reportError(errMesg[17] + "", "", ast.position);
+			}
+		}
+		return t;
+	}
+
+	// private boolean funcParArg(List arg, List par) {
+	//
+	// }
+	// TODO bu duzelecek
+	@Override
+	public Object visitCallExpr(CallExpr ast, Object o) {
+
+		// System.out.println(ast.I.spelling);
+		ast.I.visit(this, o);
+		Decl decl = (Decl) ast.I.decl;
+		if (decl == null) {
+			reporter.reportError(errMesg[19] + "", ast.I.spelling,
+					ast.I.position);
+
+		} else {
+			// ast.AL.visit(this, o);
+			if (decl instanceof FuncDecl) {
+				List plList = ((FuncDecl) decl).PL;
+				int plCounter = 0;
+				while (!(plList instanceof EmptyParaList)) {
+					plCounter++;
+					plList = ((ParaList) plList).PL;
+				}
+				List alList = ast.AL;
+				int alCounter = 0;
+				while (!(alList instanceof EmptyArgList)) {
+					alCounter++;
+					alList = ((ArgList) alList).AL;
+				}
+
+				if (alCounter > plCounter) {
+					reporter.reportError(errMesg[25] + ": %", "",
+							ast.AL.position);
+
+				} else if (alCounter < plCounter) {
+					reporter.reportError(errMesg[26] + "", "", ast.AL.position);
+
+				}
+
+			}
+
+			// ParaList p = (ParaList) ((FuncDecl) i.decl).PL;
+			// ArrayType a1 = (ArrayType) ((ArgList) ast.AL).A.E.type;
+			// ArrayType a2 = (ArrayType) p.P.T;
+			// if (!a1.T.assignable(a2.T)) {
+			// reporter.reportError(errMesg[27] + "", "", ast.position);
+			//
+			// }
+
+		}
+		return null;
+	}
+
+	// burda varExpr dan baska Array expr da eklenebilir - bunda degisiklik var
+	@Override
+	public Object visitAssignExpr(AssignExpr ast, Object o) {
+
+		ast.E1.visit(this, o);
+		ast.E2.visit(this, o);
+		if (!(ast.E1 instanceof VarExpr) || ast.E1.type.isErrorType()) {
+			reporter.reportError(errMesg[7] + "", "", ast.position);
+		}
+
+		if (ast.E1.type != ast.E2.type && !(ast.E1 instanceof BinaryExpr)
+				&& !ast.E1.type.isErrorType()) {
+			//		if(ast.E1.type != null)
+//		if(ast.E1.type.assignable(ast.E2.type)) {
+			reporter.reportError(errMesg[6] + "", "=", ast.position);
+		}
+
+		// return null;
+		return null;
+	}
+
+	// added ast.AL.visit(this, o);
+	@Override
+	public Object visitArgList(ArgList ast, Object o) {
+		ast.A.visit(this, o);
+		ast.AL.visit(this, o);
+
+		return null;
+	}
+
+
+	// return type added
+	@Override
+	public Object visitArg(Arg ast, Object o) {
+		return (Type) ast.E.visit(this, o);
+
+		// return null;
+	}
+
+	// return null instead of ast
+	@Override
+	public Object visitArrayType(ArrayType ast, Object o) {
+		ast.T.visit(this, o);
+
+		ast.E.visit(this, o);
+
+		return null;
+	}
+
+	// TODO need to check
+	@Override
+	public Object visitSimpleVar(SimpleVar ast, Object o) {
+		Type t = null;
+		Decl decl = (Decl) ast.I.visit(this, o);
+		if (decl != null) {
+			if (decl instanceof FuncDecl) {
+				reporter.reportError(errMesg[11] + ": %", ast.I.spelling,
+						ast.I.position);
+			}
+
+			else if (decl instanceof GlobalVarDecl) {
+				t = ((GlobalVarDecl) decl).T;
+			} else if (decl instanceof LocalVarDecl) {
+				t = ((LocalVarDecl) decl).T;
+			} else if (decl instanceof ParaDecl) {
+				t = ((ParaDecl) decl).T;
+			}
+			if (t == null) {
+				t = StdEnvironment.errorType;
+			}
+			return t;
+		} else {
+			return StdEnvironment.errorType;
+		}
+
+	}
+
+}

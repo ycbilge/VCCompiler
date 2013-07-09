@@ -1,0 +1,726 @@
+/**
+ **	Scanner.java  
+ *
+ *                      
+ *                      Yunus Can Bilge
+ *                      z3439349
+ *                      Programming Languages and Compilers Assignment 1 Code
+ **/
+
+package VC.Scanner;
+
+import VC.ErrorReporter;
+
+public final class Scanner {
+
+	private SourceFile sourceFile;
+	private boolean debug;
+
+	private ErrorReporter errorReporter;
+	private StringBuffer currentSpelling;
+	private char currentChar;
+	private SourcePosition sourcePos;
+	private int columnNumber;
+	private String currentToken;
+	private boolean arithmeticOn;
+	private boolean equalOn;
+	private boolean plusOn;
+	private boolean multOn;
+	private boolean minusOn;
+	private boolean commaOn;
+	private boolean unterminated;
+	private int tokenFinish;
+	private int tokenStart;
+	private boolean lineNumberAcc;
+	private boolean lineOn;
+	private int lineNumber;
+
+	public Scanner(SourceFile source, ErrorReporter reporter) {
+		sourceFile = source;
+		errorReporter = reporter;
+		currentChar = sourceFile.getNextChar();
+		debug = false;
+		currentToken = "";
+		// you may initialise your counters for line and column numbers here
+		columnNumber = 1;
+		tokenStart = 1;
+		tokenFinish = 1;
+		lineNumberAcc = false;
+		arithmeticOn = false;
+		equalOn = false;
+		plusOn = false;
+		minusOn = false;
+		multOn = false;
+		unterminated = false;
+		commaOn = false;
+		lineNumber = 1;
+		lineOn = false;
+	}
+
+	public void enableDebugging() {
+		debug = true;
+	}
+
+	private void accept() {
+		currentChar = sourceFile.getNextChar();
+		// columnNumber++;
+		if (lineNumberAcc == true) {
+			lineNumber++;
+			lineNumberAcc = false;
+
+			tokenStart = 1;
+			tokenFinish = 1;
+			columnNumber = 1;
+		}
+		if (lineOn == true) {
+			lineNumberAcc = true;
+
+			lineOn = false;
+		}
+
+		if (currentChar == '\n') {
+			lineOn = true;
+		}
+
+		if (currentChar != ' ' && currentChar != '\n') {
+			columnNumber++;
+		} else {
+
+			// System.out.println("columnNumber = " + columnNumber);
+		}
+	}
+
+	private char inspectChar(int nthChar) {
+		return sourceFile.inspectChar(nthChar);
+	}
+
+	private boolean isStringOrNot(String input) {
+
+		int count = 0;
+		for (int i = 0; i < input.length(); i++) {
+			if (input.charAt(i) == '"') {
+				count++;
+			}
+		}
+		if ((count > 0) && (count % 2 == 0)) {
+			return true;
+		} else if ((count > 0) && (count % 2) != 0 && input.contains("\\\"")) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	private boolean isInteger(String input) {
+		try {
+			Integer.parseInt(input);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private String stringConverter(String oldOne) {
+
+		String stringWthtQuota = oldOne.replace("\"", "");
+
+		String stringWthNewLn = stringWthtQuota.replace("\\n", "\n");
+
+		String stringWthTab = stringWthNewLn.replace("\\t", "        ");
+		stringWthTab = stringWthTab.replace("\\r", "\n");
+		stringWthTab = stringWthTab.replace("\\f", "\f");
+		if (!stringWthTab.contains("\\\\b"))
+			stringWthTab = stringWthTab.replace("\\b", " ");
+		else
+			stringWthTab = stringWthTab.replace("\\\\b", "\\b");
+		stringWthTab = stringWthTab.replace("\\'", "'");
+		return stringWthTab;
+
+	}
+
+	private int nextToken() {
+		while (currentChar != ' ') {
+			if (currentChar == '\t' && !currentToken.contains("/*")
+					&& !currentToken.contains("\"")) {
+				break;
+			}
+			if (!currentToken.contains("/*")) {
+				if (currentChar == '(' || currentChar == ')'
+						|| currentChar == '{' || currentChar == '}') {
+					break;
+				}
+			}
+
+			if (!currentToken.contains("/")) {
+				if (currentChar == ',') {
+					commaOn = true;
+					break;
+				}
+			}
+			if (!currentToken.contains("/")) {
+				if (currentChar == '*') {
+					multOn = true;
+					break;
+				}
+			}
+
+			if (!currentToken.contains("\"")
+					&& (!currentToken.contains(".") && ((!currentToken
+							.contains("e") || (!(currentToken.contains("1")
+							|| currentToken.contains("2")
+							|| currentToken.contains("3")
+							|| currentToken.contains("4")
+							|| currentToken.contains("5")
+							|| currentToken.contains("6")
+							|| currentToken.contains("7")
+							|| currentToken.contains("8") || currentToken
+								.contains("9")) && currentToken.contains("e")))))) {
+				if (currentChar == '+') {
+					plusOn = true;
+					break;
+				}
+			}
+			if (!currentToken.contains("\"")
+					&& (!currentToken.contains(".") && !currentToken
+							.contains("e"))) {
+				if (currentChar == '-') {
+					minusOn = true;
+					break;
+				}
+			}
+			if (!currentToken.contains("\"")) {
+				if (currentChar == '=') {
+					equalOn = true;
+					break;
+				}
+			}
+			if (arithmeticOn) {
+				currentToken += currentChar;
+				accept();
+				if (currentChar == '=') {
+					currentToken += currentChar;
+				} else {
+					break;
+				}
+			}
+
+			if (currentChar == '<' || currentChar == '>') {
+				arithmeticOn = true;
+				break;
+			}
+			if (currentChar != '\n' && arithmeticOn == false)
+				currentToken += currentChar;
+			else
+				columnNumber++;
+
+			if (currentToken.equals("<=") || currentToken.equals(">=")) {
+				break;
+			}
+
+			if (currentChar == SourceFile.eof) {
+				break;
+			} else {
+				accept();
+			}
+
+			if (isStringOrNot(currentToken)) {
+				break;
+			} else if (currentToken.contains("\"")) {
+
+				while (currentChar == ' ') {
+					currentToken += currentChar;
+					accept();
+				}
+				while (currentChar == '(') {
+					currentToken += currentChar;
+					accept();
+					while (currentChar == ' ') {
+						currentToken += currentChar;
+						accept();
+					}
+
+				}
+				while (currentChar == ')') {
+					currentToken += currentChar;
+					accept();
+					while (currentChar == ' ') {
+						currentToken += currentChar;
+						accept();
+					}
+				}
+				while (currentChar == '{') {
+					currentToken += currentChar;
+					accept();
+					while (currentChar == ' ') {
+						currentToken += currentChar;
+						accept();
+					}
+				}
+				while (currentChar == '}') {
+					currentToken += currentChar;
+					accept();
+					while (currentChar == ' ') {
+						currentToken += currentChar;
+						accept();
+					}
+				}
+			}
+
+			if (currentToken.contains("//")) {
+				while (currentChar != '\n')
+					accept();
+				currentToken = "";
+			}
+
+			if (currentToken.contains("*/")) {
+				columnNumber = 1;
+				tokenStart = 1;
+				tokenFinish = 1;
+				unterminated = false;
+				currentToken = "";
+				if (currentChar == ' ')
+					accept();
+			} else if (currentToken.contains("/*")) {
+				unterminated = true;
+				if (currentChar == ' ') {
+					accept();
+				}
+				while (currentChar == '=') {
+					accept();
+				}
+				while (currentChar == '+') {
+					accept();
+				}
+				while (currentChar == '-') {
+					accept();
+				}
+			}
+			while (currentChar == ' ' && currentToken.contains("/*")) {
+				accept();
+			}
+			// System.out.println("current char burdaki = " + currentChar);
+			if (currentToken == "") {
+				if (currentChar == ' ' || currentChar == '\n'
+						|| currentChar == ';') {
+					accept();
+				}
+				if (currentChar == ' ' || currentChar == '\n') {
+					accept();
+				}
+				if (currentChar == ' ' || currentChar == '\n') {
+					accept();
+				}
+				while (currentChar == ' ') {
+					accept();
+				}
+			}
+			if (currentChar == ';' || currentChar == '\n') {
+				if (currentToken == "") {
+					if (currentChar == ' ' || currentChar == '\n'
+							|| currentChar == ';') {
+						accept();
+					}
+					if (currentChar == ' ' || currentChar == '\n') {
+						accept();
+					}
+					if (currentChar == ' ' || currentChar == '\n') {
+						accept();
+					}
+				} else if (currentToken.contains("/*")) {
+					while (currentChar == ' ')
+						accept();
+				} else {
+					break;
+				}
+			}
+
+		}
+
+		if (currentToken == ""
+				&& (currentChar == '(' || currentChar == ')'
+						|| currentChar == '{' || currentChar == '}')) {
+			currentToken += currentChar;
+		}
+
+		if (commaOn == true) {
+			if (currentChar == ',' && currentToken.equals(""))
+				currentToken += currentChar;
+		}
+
+		if (multOn == true) {
+			if (currentChar == '*' && currentToken.equals(""))
+				currentToken += currentChar;
+		}
+		if (plusOn == true) {
+			if (currentChar == '+' && currentToken.equals(""))
+				currentToken += currentChar;
+		}
+		if (minusOn == true) {
+			if (currentChar == '-' && currentToken.equals(""))
+				currentToken += currentChar;
+		}
+		if (equalOn == true) {
+			if (currentChar == '=' && currentToken.equals(""))
+				currentToken += currentChar;
+		}
+
+		if (currentChar == SourceFile.eof) {
+			currentSpelling.append(Token.spell(Token.EOF));
+			return Token.EOF;
+		} else if (isInteger(currentToken)) {
+			currentSpelling.append(currentToken);
+			currentToken = "";
+
+			if (currentChar == ' ' || currentChar == '\t') {
+				if (currentChar != ';') {
+					accept();
+				}
+			}
+			skipSpaceAndComments();
+
+			return Token.INTLITERAL;
+
+		} else if (currentToken.equals(";")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.SEMICOLON));
+			accept();
+			skipSpaceAndComments();
+
+			return Token.SEMICOLON;
+		} else if (currentToken.contains("\"")) {
+			if (isStringOrNot(currentToken)) {
+				String stringWithoutQuota = stringConverter(currentToken);
+				currentSpelling.append(stringWithoutQuota);
+				currentToken = "";
+				if (currentChar == ' ') {
+					if (currentChar != ';') {
+						accept();
+					}
+				}
+				skipSpaceAndComments();
+
+				return Token.STRINGLITERAL;
+			} else {
+				if (currentToken.contains("\\p")) {
+					currentSpelling.append(currentToken
+							+ "\\p illegal escape character");
+				} else {
+					currentToken.replace("\"", "");
+					currentSpelling.append(currentToken
+							+ " unterminated string");
+				}
+				return Token.ERROR;
+			}
+
+		} else if (currentToken.equals("=")) {
+			currentToken = "";
+			equalOn = false;
+			currentSpelling.append(Token.spell(Token.EQ));
+			accept();
+			skipSpaceAndComments();
+			return Token.EQ;
+		} else if (currentToken.equals("+")) {
+			currentToken = "";
+			plusOn = false;
+			currentSpelling.append(Token.spell(Token.PLUS));
+			accept();
+			skipSpaceAndComments();
+			return Token.PLUS;
+		} else if (currentToken.equals("-")) {
+			currentToken = "";
+			minusOn = false;
+			currentSpelling.append(Token.spell(Token.MINUS));
+			accept();
+			skipSpaceAndComments();
+			return Token.MINUS;
+		} else if (currentToken.equals(",")) {
+			currentToken = "";
+			commaOn = false;
+			currentSpelling.append(Token.spell(Token.COMMA));
+			accept();
+			skipSpaceAndComments();
+			return Token.COMMA;
+		} else if (currentToken.equals("*")) {
+			currentToken = "";
+			multOn = false;
+			currentSpelling.append(Token.spell(Token.MULT));
+			accept();
+			skipSpaceAndComments();
+			return Token.MULT;
+		} else if (currentToken.equals("int")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.INT));
+			accept();
+			skipSpaceAndComments();
+			return Token.INT;
+		} else if (currentToken.equals("break")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.BREAK));
+			accept();
+			skipSpaceAndComments();
+			return Token.BREAK;
+		} else if (currentToken.equals("float")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.FLOAT));
+			accept();
+			skipSpaceAndComments();
+			return Token.FLOAT;
+		} else if (currentToken.equals("while")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.WHILE));
+			accept();
+			skipSpaceAndComments();
+			return Token.WHILE;
+		} else if (currentToken.equals("continue")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.CONTINUE));
+			accept();
+			skipSpaceAndComments();
+			return Token.CONTINUE;
+		} else if (currentToken.equals("else")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.ELSE));
+			accept();
+			skipSpaceAndComments();
+			return Token.ELSE;
+		} else if (currentToken.equals("void")) {
+			currentToken = "";
+			// System.out.println("current TOKEN = " + currentToken);
+			currentSpelling.append(Token.spell(Token.VOID));
+			accept();
+			skipSpaceAndComments();
+			return Token.VOID;
+		} else if (currentToken.equals("continue")) {
+			currentToken = "";
+			// System.out.println("current TOKEN = " + currentToken);
+			currentSpelling.append(Token.spell(Token.CONTINUE));
+			accept();
+			skipSpaceAndComments();
+			return Token.CONTINUE;
+		} else if (currentToken.equals("{")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.LCURLY));
+			accept();
+			skipSpaceAndComments();
+			return Token.LCURLY;
+		} else if (currentToken.equals(">")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.GT));
+			if (currentChar == ' ') {
+				if (currentChar != ';') {
+					accept();
+				}
+			}
+			skipSpaceAndComments();
+
+			return Token.GT;
+		} else if (currentToken.equals("<")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.LT));
+			if (currentChar == ' ') {
+				if (currentChar != ';') {
+					accept();
+				}
+			}
+			skipSpaceAndComments();
+
+			return Token.LT;
+		} else if (currentToken.equals("<=")) {
+			arithmeticOn = false;
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.LTEQ));
+			accept();
+			skipSpaceAndComments();
+
+			return Token.LTEQ;
+		} else if (currentToken.equals("==")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.EQEQ));
+			accept();
+			skipSpaceAndComments();
+
+			return Token.EQEQ;
+		} else if (currentToken.equals(">=")) {
+			arithmeticOn = false;
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.GTEQ));
+			accept();
+			skipSpaceAndComments();
+
+			return Token.GTEQ;
+		} else if (currentToken.equals("}")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.RCURLY));
+			accept();
+			skipSpaceAndComments();
+			return Token.RCURLY;
+		} else if (currentToken.equals("/")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.DIV));
+			accept();
+			skipSpaceAndComments();
+			return Token.DIV;
+		} else if (currentToken.equals("!")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.NOT));
+			accept();
+			skipSpaceAndComments();
+			return Token.NOT;
+		} else if (currentToken.equals("!=")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.NOTEQ));
+			accept();
+			skipSpaceAndComments();
+			return Token.NOTEQ;
+		} else if (currentToken.equals("&&")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.ANDAND));
+			accept();
+			skipSpaceAndComments();
+			return Token.ANDAND;
+		} else if (currentToken.equals("||")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.OROR));
+			accept();
+			skipSpaceAndComments();
+			return Token.OROR;
+		} else if (currentToken.equals("[")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.LBRACKET));
+			accept();
+			skipSpaceAndComments();
+			return Token.LBRACKET;
+		} else if (currentToken.equals("]")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.RBRACKET));
+			accept();
+			skipSpaceAndComments();
+			return Token.RBRACKET;
+		} else if (currentToken.equals("(")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.LPAREN));
+			accept();
+			skipSpaceAndComments();
+			return Token.LPAREN;
+		} else if (currentToken.equals(")")) {
+			currentToken = "";
+			currentSpelling.append(Token.spell(Token.RPAREN));
+			accept();
+			// System.out.println("current Char burda = " + currentChar);
+			skipSpaceAndComments();
+			return Token.RPAREN;
+		} else if (currentToken.equals("#") || currentToken.equals(".")
+				|| unterminated || currentToken.equals("|")
+				|| currentToken.equals("&")) {
+			if (unterminated) {
+				currentSpelling.append("unterminated comment");
+			} else {
+				currentSpelling.append(currentToken);
+				currentToken = "";
+			}
+			return Token.ERROR;
+		} else if (currentToken.equals("true")) {
+			currentToken = "";
+			// System.out.println("current TOKEN = " + currentToken);
+			currentSpelling.append("true");
+			accept();
+			skipSpaceAndComments();
+			return Token.BOOLEANLITERAL;
+		} else if (currentToken.equals("false")) {
+			currentToken = "";
+			// System.out.println("current TOKEN = " + currentToken);
+			currentSpelling.append("false");
+			accept();
+			skipSpaceAndComments();
+			return Token.BOOLEANLITERAL;
+		} else if ((currentToken.contains(".") && currentToken.length() >= 2)
+				|| (currentToken.contains(".") && currentToken.length() >= 2 && (currentToken
+						.contains("e") || currentToken.contains("E")))
+				|| (currentToken.length() >= 2
+						&& (currentToken.contains("e") || currentToken
+								.contains("E")) && (currentToken.contains("1")
+						|| currentToken.contains("2")
+						|| currentToken.contains("3")
+						|| currentToken.contains("4")
+						|| currentToken.contains("5")
+						|| currentToken.contains("6")
+						|| currentToken.contains("7")
+						|| currentToken.contains("8") || currentToken
+							.contains("9")))) {
+			currentSpelling.append(currentToken);
+			currentToken = "";
+			if (currentChar != ';')
+				accept();
+			skipSpaceAndComments();
+			return Token.FLOATLITERAL;
+		} else {
+			currentToken = currentToken.replaceAll("\\s", "");
+
+			currentSpelling.append(currentToken);
+			currentToken = "";
+
+			if (currentChar == ' ' || currentChar == '\t') {
+				if (currentChar != ';') {
+					accept();
+				}
+			}
+			skipSpaceAndComments();
+
+			return Token.ID;
+		}
+
+	}
+
+	void skipSpaceAndComments() {
+		while (currentChar == ' ') {
+			accept();
+		}
+		while (currentChar == '\n') {
+			accept();
+		}
+
+	}
+
+	/*
+	 * starts from here
+	 */
+	public Token getToken() {
+		Token tok;
+		int kind;
+
+		skipSpaceAndComments();
+		currentSpelling = new StringBuffer("");
+
+		sourcePos = new SourcePosition();
+
+		kind = nextToken();
+
+		sourcePos.charStart = tokenStart;
+		sourcePos.charFinish = tokenStart + currentSpelling.toString().length()
+				- 1;
+		tokenFinish = tokenStart + currentSpelling.toString().length() + 1;
+		sourcePos.lineStart = sourcePos.lineFinish = lineNumber;
+
+		if (kind == 39) {
+			sourcePos.charStart = 1;
+			sourcePos.charFinish = 1;
+			sourcePos.lineStart = sourcePos.lineFinish = lineNumber + 1;
+
+		}
+		if (unterminated) {
+			errorReporter = new ErrorReporter();
+			errorReporter.reportError("unterminated comment", currentSpelling.toString(), sourcePos);
+			unterminated = false;
+			
+		}
+		tok = new Token(kind, currentSpelling.toString(), sourcePos);
+
+		tokenStart = tokenFinish;
+		columnNumber++;
+
+		if (debug)
+			System.out.println(tok);
+		return tok;
+	}
+
+}
